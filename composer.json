@@ -1,0 +1,24 @@
+{
+    "name": "damiandennis/yii2-ko-activerecord",
+    "description": "Providing a active record in knockout for more flexibility.",
+    "license": "BSD-3-Clause",
+    "authors": [
+        {
+            "name": "Damian Dennis",
+            "email": "damiandennis@gmail.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.4",
+        "damiandennis/yii2-knockoutjs": "dev-develop",
+        "bower-asset/spin.js": "2.0.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "damiandennis\\koactiverecord\\": [
+                "src/widgets/",
+                "src/assets/"
+            ]
+        }
+    }
+}
