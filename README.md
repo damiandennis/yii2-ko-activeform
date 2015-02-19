@@ -1,4 +1,4 @@
-yii2-ko-activerecord
+yii2-ko-activeform
 ===============
 
 Under Construction

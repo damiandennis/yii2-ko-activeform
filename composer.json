@@ -1,6 +1,6 @@
 {
-    "name": "damiandennis/yii2-ko-activerecord",
-    "description": "Providing a active record in knockout for more flexibility.",
+    "name": "damiandennis/yii2-ko-activeform",
+    "description": "Providing a active form in knockout for more flexibility.",
     "license": "BSD-3-Clause",
     "authors": [
         {
@@ -15,7 +15,7 @@
     },
     "autoload": {
         "psr-4": {
-            "damiandennis\\koactiverecord\\": [
+            "damiandennis\\koactiveform\\": [
                 "src/widgets/",
                 "src/assets/"
             ]
