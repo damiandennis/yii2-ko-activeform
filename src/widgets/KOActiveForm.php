@@ -19,7 +19,7 @@ use yii\helpers\Html;
 use yii\helpers\Json;
 use yii\web\View;
 
-class KOActiveRecord extends Widget
+class KOActiveForm extends Widget
 {
     public $models;
 
