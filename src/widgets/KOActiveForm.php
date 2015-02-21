@@ -22,6 +22,7 @@ use yii\web\View;
 class KOActiveForm extends Widget
 {
     public $models;
+    public $formOptions = ['method' => 'post'];
 
     public function init()
     {
@@ -37,7 +38,9 @@ class KOActiveForm extends Widget
 
         if (is_array($this->models)) {
             foreach ($this->models as $model => $data) {
-                $this->validateParams($model, $data);
+                $data = $this->validateParams($model, $data);
+                $this->models[$model] = $data;
+
             }
         }
 
@@ -45,7 +48,7 @@ class KOActiveForm extends Widget
         ob_start();
     }
 
-    public function validateParams($model, &$data)
+    public function validateParams($model, $data)
     {
         if ($model === null) {
             throw new \Exception('data is a required parameter.');
@@ -60,17 +63,22 @@ class KOActiveForm extends Widget
         }
 
         if (is_object($data) && is_a($data, 'yii\base\Model')) {
-            $data = $data->attributes;
+
+            $dataToReturn = KO::prepareToJson($data);
+
+            return $dataToReturn;
+
         } elseif (is_object($data)) {
             throw new \Exception('data must be object that inherits yii\base\Model class.');
         }
+        return $data;
     }
 
     public function run()
     {
         parent::init();
         $content = ob_get_clean();
-        $wrapper = Html::tag('div', $content, ['id' => $this->id]);
+        $wrapper = Html::tag('form', $content, ['id' => $this->id] + $this->formOptions);
         return KO::beginVirtual('stopBinding: true')."{$wrapper}".KO::endVirtual();
     }
 

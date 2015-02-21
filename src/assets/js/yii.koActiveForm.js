@@ -6,6 +6,21 @@ yii.koActiveForm = (function ($) {
         var self = this;
         var start = 0;
         ko.utils.objectForEach(data, function(k, v) {
+
+            if (typeof Model[k] === 'undefined') {
+                Model[k] = function(data) {
+                    var model = this;
+                    data = data || {};
+                    var defaultAttributes = data.attributes || {};
+                    var defaultRelations = data.relations || {};
+                    model.rules = data.rules || [];
+                    model.attributeLabels = data.attributeLabels || {};
+                    model.isNewRecord(data.isNewRecord);
+                    model.mapDataToModels(defaultAttributes, defaultRelations, data.values || {});
+                };
+                ko.utils.extend(Model[k].prototype, new Model.BaseModel());
+            }
+
             self['m'+start] = new Model[k](v);
             start++;
         });
@@ -17,6 +32,10 @@ yii.koActiveForm = (function ($) {
         },
         setBinding: function(id, data) {
             var activeForm = new KoActiveForm(data);
+            var csrfParam = yii.getCsrfParam();
+            if (csrfParam) {
+                $('#'+id).append('<input name="' + csrfParam + '" value="' + yii.getCsrfToken() + '" type="hidden">');
+            }
             ko.applyBindings(activeForm, $('#'+id)[0]);
             this.registrar.push(activeForm);
         }
