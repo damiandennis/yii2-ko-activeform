@@ -12,17 +12,20 @@ use damiandennis\knockoutjs\KO;
 use damiandennis\knockoutjs\KOMappingAsset;
 use damiandennis\knockoutjs\KOValidationAsset;
 use damiandennis\knockoutjs\LoDashAsset;
+use damiandennis\knockoutjs\KOCustomAsset;
 use Yii;
 use yii\base\Model;
 use yii\base\Widget;
 use yii\helpers\Html;
 use yii\helpers\Json;
+use yii\web\JsExpression;
 use yii\web\View;
 
 class KOActiveForm extends Widget
 {
     public $models;
     public $formOptions = ['method' => 'post'];
+    public $extendForm;
 
     public function init()
     {
@@ -40,7 +43,6 @@ class KOActiveForm extends Widget
             foreach ($this->models as $model => $data) {
                 $data = $this->validateParams($model, $data);
                 $this->models[$model] = $data;
-
             }
         }
 
@@ -93,8 +95,14 @@ class KOActiveForm extends Widget
         LoDashAsset::register($view);
         KOValidationAsset::register($view);
         ModelAsset::register($view);
+        KOCustomAsset::register($view);
 
-        $data = Json::encode($this->models);
+        $data = [
+            'models' => $this->models,
+            'extendForm' => new JsExpression($this->extendForm)
+        ];
+
+        $data = Json::encode($data);
         $view->registerJs(
             "
             $(function() {

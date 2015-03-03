@@ -17,18 +17,19 @@ Model.BaseModel = function() {
      * Check that required libraries are included and initiate them.
      */
     if (typeof ko.validation == 'undefined') {
-        throw "ko.validation library is required to use base model."
+        throw new Error("ko.validation library is required to use base model.");
     }
     if (typeof ko.mapping == 'undefined') {
-        throw "ko.mapping library is required to use base model."
+        throw new Error("ko.mapping library is required to use base model.");
     }
 
     ko.validation.init({
         errorMessageClass: 'help-block',
+        insertMessages: false,
         grouping: {
             deep: false,
             observable: true,
-            live: true
+            live: false
         }
     });
 
@@ -46,13 +47,22 @@ Model.BaseModel = function() {
      * @param {function} beforeValidate The function to run before validation. Useful for setting extra attributes.
      */
     base.init = function(data, beforeValidate) {
-        console.log(data);
+
+        this.errors = ko.observableArray();
+        this.rules = ko.observableArray();
+        this.attributes = ko.observable();
+        this.relations = ko.observable();
+        this.validateFields = ko.observableArray();
+        this.saveUrl = ko.observable('');
+        this.isNewRecord = ko.observable(true);
+
         data = data || {};
-        base.beforeValidate = beforeValidate.bind(this) || function(){};
+        this.beforeValidate = beforeValidate ? beforeValidate.bind(this) : function(){};
         this.rules(data.rules || []);
         this.attributeLabels = data.attributeLabels || {};
         this.isNewRecord(data.isNewRecord);
         this.class = data.class || '';
+        this.jsClass = data.jsClass || '';
         this.mapDataToModels(data.attributes || {}, data.relations || {}, data.values || {});
     };
 
@@ -63,31 +73,31 @@ Model.BaseModel = function() {
     /**
      * For storing of errors of attributes.
      */
-    base.errors = ko.observableArray();
+    base.errors = [];
     /**
      * Stores the rules for attributes.
      */
-    base.rules = ko.observableArray();
+    base.rules = [];
     /**
      * Stores the attributes.
      */
-    base.attributes = ko.observable();
+    base.attributes = {};
     /**
      * Stores the relations.
      */
-    base.relations = ko.observable();
+    base.relations = {};
     /**
      * Stores the fields that require validation.
      */
-    base.validateFields = ko.observableArray();
+    base.validateFields = [];
     /**
      * The place to save the updated data.
      */
-    base.saveUrl = ko.observable('');
+    base.saveUrl = '';
     /**
      * If the model is new or not.
      */
-    base.isNewRecord = ko.observable(true);
+    base.isNewRecord = true;
     /**
      * Stores the labels for the attributes.
      */
@@ -105,7 +115,7 @@ Model.BaseModel = function() {
      * @param rule
      * @param field
      */
-    var validateField = function(_this, rule, field) {
+    base.validateField = function(_this, rule, field) {
         var extend = {};
         extend[rule[1]] = rule[2] || {};
         var label = _this.attributeLabels[field] || _.startCase(field);
@@ -115,15 +125,15 @@ Model.BaseModel = function() {
             extend[rule[1]].params = {attribute: extend[rule[1]].attribute};
             var copy = extend[rule[1]].onlyIf;
             extend[rule[1]].onlyIf = function () {
-                return copy() && (_.contains(base.validateFields(), field));
+                return copy() && (_.contains(_this.validateFields(), field));
             }
         } else {
             extend[rule[1]].params = {attribute: extend[rule[1]].attribute};
             extend[rule[1]].onlyIf = function () {
-                return (_.contains(base.validateFields(), field));
+                return (_.contains(_this.validateFields(), field));
             }
         }
-        if (_this.attributes()[field]) {
+        if (ko.isObservable(_this.attributes()[field])) {
             _this.attributes()[field].extend(extend);
         }
     };
@@ -133,14 +143,14 @@ Model.BaseModel = function() {
      *
      * @param {Object} _this The originating class.
      */
-    var setRules = function(_this) {
+    base.setRules = function(_this) {
         ko.utils.arrayForEach(_this.rules(), function(rule) {
             if (_.isArray(rule[0])) {
                 ko.utils.arrayForEach(rule[0], function (field) {
-                    validateField(_this, rule, field);
+                    base.validateField(_this, rule, field);
                 });
             } else if (_.isString(rule[0])) {
-                validateField(_this, rule, rule[0]);
+                base.validateField(_this, rule, rule[0]);
             }
         });
 
@@ -159,10 +169,15 @@ Model.BaseModel = function() {
         var isValid = false;
         if (ko.isComputed(this.attributes()[attribute])) {
 
-        }
-        else {
-            isModified = this.attributes()[attribute].isModified();
-            isValid = this.attributes()[attribute].isValid();
+        } else if(ko.isObservable(this.attributes()[attribute])) {
+            if (this.attributes()[attribute].isModified !== undefined) {
+                isModified = this.attributes()[attribute].isModified();
+            }
+            if (this.attributes()[attribute].isValid !== undefined) {
+                isValid = this.attributes()[attribute].isValid();
+            }
+        } else {
+            throw new Error('Attributes must be observables or computed.');
         }
         return !isModified ? '' : (isValid ? 'has-success' : 'has-error');
     };
@@ -175,6 +190,16 @@ Model.BaseModel = function() {
      */
     base.v = function(attribute) {
         return this.attributes()[attribute];
+    };
+
+    /**
+     * Shortcut for retrieving relations.
+     *
+     * @param {string} relation The name of the relation.
+     * @returns {function} The observable for this relation.
+     */
+    base.r = function(relation) {
+        return this.relations()[relation];
     };
 
     /**
@@ -205,45 +230,74 @@ Model.BaseModel = function() {
         attributes = _.extend({}, attributes, data);
         var relations = _.clone(defaultRelations);
 
-        // Clear meta data.
-        _.forEach(relations, function(relation, index) { relations[index] = null; });
-        relations = _.extend({}, relations, data);
-
         var attributeArray = _.keys(defaultAttributes);
-        base.validateFields(attributeArray);
+        this.validateFields(attributeArray);
 
         //Ignore relations.
         var attributeMapping = {
-            'ignore': _.keys(defaultRelations)
+
         };
 
         //Ignore attributes.
         var relationMapping = {
-            'ignore': attributeArray
+
         };
 
         // Set the mapping type for the model, if it does not exist map it as observable array.
         _.forEach(defaultRelations, function(v, k) {
+
+            var modelName = _.capitalize(k); //Set model name to relation by default.
+            var r = relations[k];
+            if (typeof r === 'object') {
+                if (_.isArray(r)) {
+                    if (r[0] !== undefined && r[0].jsClass !== undefined && r[0].jsClass.length > 0) {
+                        modelName = r[0].jsClass;
+                    } else {
+                        modelName = modelName.replace(/s$/, '');
+                    }
+                } else if (r !== undefined && r.jsClass !== undefined && r.jsClass.length > 0) {
+                    modelName = r[0].jsClass;
+                }
+            } else {
+                modelName = modelName.replace(/s$/, '');
+            }
+
             relationMapping[k] = {
-                create: function(options) {
-                    if (typeof Model[v[1]] == 'function' && options.data) {
-                        return new Model[v[1]](options.data);
-                    } else if (_.isArray(options.data)) {
-                        return ko.observableArray(options.data);
+                create: function (options) {
+                    if (typeof Model[modelName] == 'function' && options.data) {
+                        return new Model[modelName](options.data);
                     } else {
                         if (ko.isComputed(options.data) || ko.isObservable(options.data)) {
                             return options.data;
                         } else {
-                            return ko.observable(options.data);
+                            Model[modelName] = function (data) {
+                                var model = this;
+                                data = data || {};
+                                data.jsClass = modelName;
+                                model.init(data);
+                                this.toJSON = function () {
+                                    this.base.toJSON.bind(this);
+                                    return this.base.toJSON();
+                                };
+                            };
+                            ko.utils.extend(Model[modelName].prototype, new Model.BaseModel());
+                            return new Model[modelName](options.data);
                         }
                     }
                 }
             };
         });
-        base.attributes(ko.mapping.fromJS(attributes, attributeMapping));
-        base.relations(ko.mapping.fromJS(relations, relationMapping));
-        base.beforeValidate();
-        setRules(this);
+
+        try {
+            this.attributes(ko.mapping.fromJS(attributes, attributeMapping));
+            this.relations(ko.mapping.fromJS(relations, relationMapping));
+        } catch (e) {
+            console.error(e.stack);
+        }
+        if (typeof this.beforeValidate === 'function') {
+            this.beforeValidate();
+        }
+        this.setRules(this);
     };
 
     /**
@@ -260,10 +314,10 @@ Model.BaseModel = function() {
             }).done(function(res) {
                 console.log(res);
             }).error(function() {
-                console.error('request failed.');
+                throw new Error('saving model failed.');
             });
         } else {
-            console.error(base.errors());
+            console.error(this.errors());
         }
     };
 
@@ -276,14 +330,14 @@ Model.BaseModel = function() {
      */
     base.validate = function(attributes, showMessages) {
         if (_.isArray(attributes)) {
-            base.validateFields(attributes);
+            this.validateFields(attributes);
         }
-        base.errors([]);
-        setRules(this);
-        groupValidator = ko.validation.group(base.attributes);
-        groupValidator.showAllMessages(false);
-        base.errors(ko.toJS(groupValidator));
-        return base.errors().length == 0;
+        this.errors([]);
+        this.setRules(this);
+        groupValidator = ko.validation.group(this.attributes);
+        groupValidator.showAllMessages(showMessages !== undefined ? showMessages : false);
+        this.errors(ko.toJS(groupValidator));
+        return this.errors().length == 0;
     };
 
     /**
@@ -291,9 +345,33 @@ Model.BaseModel = function() {
      *
      * @returns {object}
      */
-    this.toJSON = function() {
+    base.toJSON = function() {
         var copy = ko.mapping.toJS(this);
         return copy.attributes;
+    };
+
+    base.clone = function() {
+        var copy = {};
+        copy.attributes = ko.toJS(this.attributes());
+        copy.attributeLabels = this.attributeLabels;
+        copy.isNewRecord = true;
+        copy.class = this.class;
+        copy.jsClass = this.jsClass;
+        if (this.jsClass) {
+            Model[this.jsClass].prototype = Model[this.jsClass].prototype.constructor;
+            ko.utils.extend(Model[this.jsClass].prototype, new Model.BaseModel());
+            return new (Model[this.jsClass])(copy);
+        } else {
+            throw new Error('jsClass must be defined in order to clone.');
+        }
+    };
+
+    base.generateName = function(field, key) {
+        if (key !== undefined) {
+            return this.class + '[' + key + '][' + field + ']';
+        } else {
+            return this.class + '[' + field + ']';
+        }
     };
 
     /**
