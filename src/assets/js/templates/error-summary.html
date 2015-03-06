@@ -1,0 +1,11 @@
+<div class="alert alert-danger clearfix" data-bind="visible: m1.errors().length > 0 && showPriceErrors" role="alert">
+    <span class="glyphicon glyphicon-exclamation-sign pull-left" aria-hidden="true"></span>
+    <div class="pull-left" style="padding-left: 10px;">
+        <?= KO::beginVirtual('foreach: m1.errors') ?>
+        <div data-bind="text: $data"></div>
+        <?= KO::endVirtual() ?>
+    </div>
+    <a href="#" class="close pull-right" data-bind="click: function () { showPriceErrors(!showPriceErrors()) }">
+        &times;
+    </a>
+</div>

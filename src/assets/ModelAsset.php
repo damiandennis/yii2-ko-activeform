@@ -14,7 +14,12 @@ class ModelAsset extends AssetBundle
     public function init()
     {
         $this->setSourcePath('@koactiveform/assets/js');
-        $this->setupAssets('js', ['yii.koActiveForm', 'Model', 'BaseModel', 'custom-components']);
+        $this->setupAssets('js', [
+            'yii.koActiveForm',
+            'Model',
+            'Model.Base',
+            'ko.components.koActiveForm'
+        ]);
         parent::init();
     }
 }

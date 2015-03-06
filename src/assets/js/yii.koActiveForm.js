@@ -19,7 +19,7 @@ yii.koActiveForm = (function ($) {
                         return this.base.toJSON();
                     };
                 };
-                ko.utils.extend(Model[k].prototype, new Model.BaseModel());
+                ko.utils.extend(Model[k].prototype, new Model.Base());
             }
 
             self['m'+start] = new Model[k](v);

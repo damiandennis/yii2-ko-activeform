@@ -11,7 +11,9 @@ var Model = Model || {};
  *
  * @constructor
  */
-Model.BaseModel = function() {
+Model.Base = function(validationInit) {
+
+    validationInit = validationInit || {};
 
     /*
      * Check that required libraries are included and initiate them.
@@ -23,7 +25,7 @@ Model.BaseModel = function() {
         throw new Error("ko.mapping library is required to use base model.");
     }
 
-    ko.validation.init({
+    var defaults = {
         errorMessageClass: 'help-block',
         insertMessages: false,
         grouping: {
@@ -31,12 +33,14 @@ Model.BaseModel = function() {
             observable: true,
             live: false
         }
-    });
+    };
+
+    ko.validation.init(_.extend(defaults, validationInit));
 
     /**
      * Create local and reference for child.
      *
-     * @type {Model.BaseModel}
+     * @type {Model.Base}
      */
     var base = this;
 
@@ -63,7 +67,31 @@ Model.BaseModel = function() {
         this.isNewRecord(data.isNewRecord);
         this.class = data.class || '';
         this.jsClass = data.jsClass || '';
+        this.primaryKey = data.primaryKey || false;
         this.mapDataToModels(data.attributes || {}, data.relations || {}, data.values || {});
+
+        this.getID = ko.computed(function() {
+            var self = this;
+            if (!this.primaryKey || this.isNewRecord()) {
+                return false;
+            }
+            try {
+                if (_.isArray(this.primaryKey)) {
+                    if (this.primaryKey.length > 1) {
+                        return _.arrayMap(this.primaryKey, function(composite) {
+                            return self.v(composite)();
+                        });
+                    } else {
+                        return this.v(this.primaryKey[0])();
+                    }
+                } else {
+                    return this.v(this.primaryKey)();
+                }
+            } catch (e) {
+                return false;
+            }
+        }, this);
+
     };
 
     /**
@@ -189,6 +217,9 @@ Model.BaseModel = function() {
      * @returns {function} The observable for this attribute.
      */
     base.v = function(attribute) {
+        if (typeof this.attributes()[attribute] === 'undefined') {
+            throw new Error('attribute ' + attribute + ' is not defined.');
+        }
         return this.attributes()[attribute];
     };
 
@@ -199,6 +230,9 @@ Model.BaseModel = function() {
      * @returns {function} The observable for this relation.
      */
     base.r = function(relation) {
+        if (typeof this.relations()[relation] === 'undefined') {
+            throw new Error('relation ' + relation + ' is not defined.');
+        }
         return this.relations()[relation];
     };
 
@@ -280,7 +314,7 @@ Model.BaseModel = function() {
                                     return this.base.toJSON();
                                 };
                             };
-                            ko.utils.extend(Model[modelName].prototype, new Model.BaseModel());
+                            ko.utils.extend(Model[modelName].prototype, new Model.Base());
                             return new Model[modelName](options.data);
                         }
                     }
@@ -358,8 +392,6 @@ Model.BaseModel = function() {
         copy.class = this.class;
         copy.jsClass = this.jsClass;
         if (this.jsClass) {
-            Model[this.jsClass].prototype = Model[this.jsClass].prototype.constructor;
-            ko.utils.extend(Model[this.jsClass].prototype, new Model.BaseModel());
             return new (Model[this.jsClass])(copy);
         } else {
             throw new Error('jsClass must be defined in order to clone.');
@@ -377,7 +409,7 @@ Model.BaseModel = function() {
     /**
      * Stores this model for Child model to access.
      *
-     * @type {Model.BaseModel}
+     * @type {Model.Base}
      */
     this.base = base;
 };
