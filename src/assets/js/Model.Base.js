@@ -10,6 +10,7 @@ var Model = Model || {};
  * The base model. This handles validation and saving of the child model.
  *
  * @constructor
+ * @param {Object} validationInit The validation parameters.
  */
 Model.Base = function(validationInit) {
 
@@ -25,6 +26,10 @@ Model.Base = function(validationInit) {
         throw new Error("ko.mapping library is required to use base model.");
     }
 
+    /**
+     * Validation defaults.
+     * @type {Object}
+     */
     var defaults = {
         errorMessageClass: 'help-block',
         insertMessages: false,
@@ -45,31 +50,95 @@ Model.Base = function(validationInit) {
     var base = this;
 
     /**
-     * Initiates rules, labels and attributes.
+     * Initiates rules, labels and attributes. Observables and Computed are created here to
+     * prevent issues with inheritance and KO. This needs to be called in the child class.
      *
      * @param {Object} data The data from the server.
      * @param {function} beforeValidate The function to run before validation. Useful for setting extra attributes.
      */
     base.init = function(data, beforeValidate) {
 
-        this.errors = ko.observableArray();
-        this.rules = ko.observableArray();
-        this.attributes = ko.observable();
-        this.relations = ko.observable();
-        this.validateFields = ko.observableArray();
-        this.saveUrl = ko.observable('');
-        this.isNewRecord = ko.observable(true);
-
         data = data || {};
-        this.beforeValidate = beforeValidate ? beforeValidate.bind(this) : function(){};
-        this.rules(data.rules || []);
-        this.attributeLabels = data.attributeLabels || {};
-        this.isNewRecord(data.isNewRecord);
-        this.class = data.class || '';
-        this.jsClass = data.jsClass || '';
-        this.primaryKey = data.primaryKey || false;
-        this.mapDataToModels(data.attributes || {}, data.relations || {}, data.values || {});
 
+        /**
+         *  To store errors for validation of attributes.
+         */
+        this.errors = ko.observableArray();
+
+        /**
+         * Stores the validation rules, usually pulled from server model.
+         */
+        this.rules = ko.observableArray(data.rules || []);
+
+        /**
+         * Stores the attributes and there values.
+         */
+        this.attributes = ko.observable();
+
+        /**
+         * Stores active relations.
+         */
+        this.relations = ko.observable();
+
+        /**
+         * Stores fields that require validation.
+         */
+        this.validateFields = ko.observableArray();
+
+        /**
+         * Url to save model data to.
+         */
+        this.saveUrl = ko.observable('');
+
+        /**
+         * Has this model already been created in the database.
+         */
+        this.isNewRecord = ko.observable(data.isNewRecord !== undefined ? data.isNewRecord : true);
+
+        /**
+         * Callback to execute code before validating this model.
+         * @type {function(this:base)|*}
+         */
+        this.beforeValidate = beforeValidate ? beforeValidate.bind(this) : function(){};
+
+        /**
+         *
+         * @type {{}|*|base.attributeLabels|attributeLabels|copy.attributeLabels}
+         */
+        this.attributeLabels = data.attributeLabels || {};
+
+        /**
+         * The name of server model.
+         * @type {string}
+         */
+        this.class = data.class || '';
+
+        /**
+         * The name of the client model (usually the same as server).
+         * @type {string}
+         */
+        this.jsClass = data.jsClass || '';
+
+        /**
+         * The primary key name for this model or false if no primary key.
+         *
+         * @type {boolean|string}
+         */
+        this.primaryKey = data.primaryKey || false;
+
+        /**
+         * Set if this object has been deleted on the client side.
+         */
+        this.deleted = ko.observable(false);
+
+        /**
+         * Tracks the parent for removal.
+         */
+        this.parent = ko.observable();
+
+        /**
+         * gets the current primary id for this class.
+         */
         this.getID = ko.computed(function() {
             var self = this;
             if (!this.primaryKey || this.isNewRecord()) {
@@ -91,6 +160,11 @@ Model.Base = function(validationInit) {
                 return false;
             }
         }, this);
+
+        /**
+         * Map the attributes, relations and values.
+         */
+        this.mapDataToModels(data.attributes || {}, data.relations || {}, data.values || {});
 
     };
 
@@ -250,6 +324,39 @@ Model.Base = function(validationInit) {
         }
     };
 
+    /**
+     * Checks if relation exists and is populated.
+     *
+     * @param relation The relation name to check.
+     * @returns {boolean} whether the relation exists and is populated.
+     */
+    base.relationExists = function(relation) {
+        return typeof this.relations()[relation] !== 'undefined';
+    };
+
+    /**
+     *
+     * @param relationName
+     * @param relation
+     */
+    base.addRelation = function(relationName, relation) {
+        var self = this;
+        if (this.relations()[relationName] === undefined) {
+            this.relations()[relationName] = _.isArray(relation) ? ko.observableArray(relation) : ko.observable(relation);
+        } else {
+            if (_.isArray(this.relations()[relationName]())) {
+                if (_.isArray(relation)) {
+                    _.each(relation, function(r) {
+                        self.relations()[relationName].push(r);
+                    });
+                } else {
+                    this.relations()[relationName].push(relation);
+                }
+            } else {
+                this.relations()[relationName](relation);
+            }
+        }
+    };
 
     /**
      * Maps data to appropriate places.
@@ -375,6 +482,23 @@ Model.Base = function(validationInit) {
     };
 
     /**
+     * Removes the item if is a new record otherwise flags as deleted.
+     * @param model
+     * @param event
+     * @param parent The parent model to remove item from.
+     */
+    base.remove = function(model, event, parent) {
+        if (this.isNewRecord()) {
+            if (parent === undefined) {
+                throw new Error('third parameter parent is required for deleting elements.');
+            }
+            parent.remove(model);
+        } else {
+            model.deleted(true);
+        }
+    };
+
+    /**
      * For ko.toJSON to extract attributes.
      *
      * @returns {object}
@@ -384,6 +508,9 @@ Model.Base = function(validationInit) {
         return copy.attributes;
     };
 
+    /**
+     * Clones the current model.
+     */
     base.clone = function() {
         var copy = {};
         copy.attributes = ko.toJS(this.attributes());
@@ -398,6 +525,12 @@ Model.Base = function(validationInit) {
         }
     };
 
+    /**
+     * Generates name for saving serverside.
+     * @param field
+     * @param key
+     * @returns {string}
+     */
     base.generateName = function(field, key) {
         if (key !== undefined) {
             return this.class + '[' + key + '][' + field + ']';

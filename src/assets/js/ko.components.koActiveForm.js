@@ -44,17 +44,19 @@ ko.components.register('field-textarea-row', {
 ko.components.register('error-summary', {
     viewModel: function(params) {
         this.model = params.model;
-        this.field = params.field;
-        this.fieldOptions = params.fieldOptions || {};
-        this.fieldOptions.type = params.type || 'text';
-        this.fieldOptions.name = this.model.class + '[' + this.field + ']';
-        this.useLabel = params.useLabel !== undefined ? params.useLabel : true;
-        if (!ko.isObservable(this.useLabel)) {
-            this.useLabel = ko.observable(this.useLabel);
+        this.showErrors = params.showErrors || false;
+        if (!ko.isObservable(this.showErrors)) {
+            this.showErrors = ko.observable(this.showErrors);
         }
     },
-    template: '<div class="form-group" data-bind="css: model.statusClass(field)">\
-                <label for="username" class="control-label" data-bind="visible: useLabel, text: model.l(field)"></label>\
-                <textarea id="username" class="form-control" data-bind="value: model.v(field), attr: fieldOptions"></textarea>\
+    template: '<div class="alert alert-danger clearfix" data-bind="visible: model.errors().length > 0 && showErrors" role="alert">\
+                <span class="glyphicon glyphicon-exclamation-sign pull-left" aria-hidden="true"></span>\
+                <div class="pull-left" style="padding-left: 10px;">\
+                <!-- ko foreach: model.errors -->\
+                    <div data-bind="text: $data"></div>\
+                <!-- /ko -->\
+                </div>\
+                <a href="#" class="close pull-right" data-bind="click: function () { showErrors(!showErrors()) }">&times;</a>\
                </div>'
 });
+
