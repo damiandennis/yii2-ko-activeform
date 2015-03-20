@@ -7,22 +7,21 @@ yii.koActiveForm = (function ($) {
         var start = 0;
         data.models = data.models || [];
         ko.utils.objectForEach(data.models, function(k, v) {
-
-            if (typeof Model[k] === 'undefined') {
-                Model[k] = function(data) {
+            if (typeof Model[v.className] === 'undefined') {
+                Model[v.className] = function(data) {
                     var model = this;
                     data = data || {};
-                    data.jsClass = k;
+                    data.jsClass = v.className;
                     model.init(data);
                     this.toJSON = function() {
                         this.base.toJSON.bind(this);
                         return this.base.toJSON();
                     };
                 };
-                ko.utils.extend(Model[k].prototype, new Model.Base());
+                ko.utils.extend(Model[v.className].prototype, new Model.Base());
             }
 
-            self['m'+start] = new Model[k](v);
+            self[isNaN(k) ? k : 'm' + k] = new Model[v.className](v);
             start++;
         });
 

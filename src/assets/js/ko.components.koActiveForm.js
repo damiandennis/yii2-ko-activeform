@@ -18,8 +18,8 @@ ko.components.register('field-input-row', {
         }
     },
     template: '<div class="form-group" data-bind="css: model.statusClass(field)">\
-                <label for="username" class="control-label" data-bind="visible: useLabel, text: model.l(field)"></label>\
-                <input id="username" class="form-control" data-bind="value: model.v(field), attr: fieldOptions, element: element" />\
+                <label for="username" class="control-label" data-bind="visible: useLabel, text: model.label(field)"></label>\
+                <input id="username" class="form-control" data-bind="value: model.value(field), attr: fieldOptions, element: element" />\
                </div>'
 });
 
@@ -36,8 +36,8 @@ ko.components.register('field-textarea-row', {
         }
     },
     template: '<div class="form-group" data-bind="css: model.statusClass(field)">\
-                <label for="username" class="control-label" data-bind="visible: useLabel, text: model.l(field)"></label>\
-                <textarea id="username" class="form-control" data-bind="value: model.v(field), attr: fieldOptions"></textarea>\
+                <label for="username" class="control-label" data-bind="visible: useLabel, text: model.label(field)"></label>\
+                <textarea id="username" class="form-control" data-bind="value: model.value(field), attr: fieldOptions"></textarea>\
                </div>'
 });
 
@@ -58,5 +58,23 @@ ko.components.register('error-summary', {
                 </div>\
                 <a href="#" class="close pull-right" data-bind="click: function () { showErrors(!showErrors()) }">&times;</a>\
                </div>'
+});
+
+ko.components.register('id-marker', {
+    viewModel: function(params) {
+        this.model = params.model;
+        this.index = ko.isObservable(params.index) ? params.index() : params.index;
+        this.key = this.model.getPrimaryKeyString();
+    },
+    template: '<input type="hidden" data-bind="value: model.getID, attr: {name: model.generateName(key, index)}" />'
+});
+
+ko.components.register('delete-marker', {
+    viewModel: function(params) {
+        this.model = params.model;
+        this.index = ko.isObservable(params.index) ? params.index() : params.index;
+        this.key = 'deleted';
+    },
+    template: '<input type="hidden" data-bind="value: model.deleted, attr: {name: model.generateName(key, index)}" />'
 });
 

@@ -111,7 +111,7 @@ Model.Base = function(validationInit) {
          * The name of server model.
          * @type {string}
          */
-        this.class = data.class || '';
+        this.className = data.className || '';
 
         /**
          * The name of the client model (usually the same as server).
@@ -148,13 +148,13 @@ Model.Base = function(validationInit) {
                 if (_.isArray(this.primaryKey)) {
                     if (this.primaryKey.length > 1) {
                         return _.arrayMap(this.primaryKey, function(composite) {
-                            return self.v(composite)();
+                            return self.value(composite)();
                         });
                     } else {
-                        return this.v(this.primaryKey[0])();
+                        return this.value(this.primaryKey[0])();
                     }
                 } else {
-                    return this.v(this.primaryKey)();
+                    return this.value(this.primaryKey)();
                 }
             } catch (e) {
                 return false;
@@ -208,7 +208,7 @@ Model.Base = function(validationInit) {
      * Stores the class for the model.
      * @type {string}
      */
-    base.class = '';
+    base.className = '';
 
     /**
      * Adds validators to each field based on rule.
@@ -290,7 +290,7 @@ Model.Base = function(validationInit) {
      * @param {string} attribute The name of the attribute.
      * @returns {function} The observable for this attribute.
      */
-    base.v = function(attribute) {
+    base.value = function(attribute) {
         if (typeof this.attributes()[attribute] === 'undefined') {
             throw new Error('attribute ' + attribute + ' is not defined.');
         }
@@ -303,7 +303,7 @@ Model.Base = function(validationInit) {
      * @param {string} relation The name of the relation.
      * @returns {function} The observable for this relation.
      */
-    base.r = function(relation) {
+    base.relation = function(relation) {
         if (typeof this.relations()[relation] === 'undefined') {
             throw new Error('relation ' + relation + ' is not defined.');
         }
@@ -316,7 +316,7 @@ Model.Base = function(validationInit) {
      * @param {string} attribute The name of the attribute.
      * @returns {function} The observable for this attribute.
      */
-    base.l = function(attribute) {
+    base.label = function(attribute) {
         if (this.attributeLabels[attribute] !== undefined) {
             return this.attributeLabels[attribute];
         } else {
@@ -476,7 +476,7 @@ Model.Base = function(validationInit) {
         this.errors([]);
         this.setRules(this);
         groupValidator = ko.validation.group(this.attributes);
-        groupValidator.showAllMessages(showMessages !== undefined ? showMessages : false);
+        groupValidator.showAllMessages(showMessages !== undefined ? showMessages : true);
         this.errors(ko.toJS(groupValidator));
         return this.errors().length == 0;
     };
@@ -516,8 +516,9 @@ Model.Base = function(validationInit) {
         copy.attributes = ko.toJS(this.attributes());
         copy.attributeLabels = this.attributeLabels;
         copy.isNewRecord = true;
-        copy.class = this.class;
+        copy.className = this.className;
         copy.jsClass = this.jsClass;
+        copy.rules = this.rules();
         if (this.jsClass) {
             return new (Model[this.jsClass])(copy);
         } else {
@@ -527,15 +528,32 @@ Model.Base = function(validationInit) {
 
     /**
      * Generates name for saving serverside.
-     * @param field
+     * @param fields
      * @param key
      * @returns {string}
      */
-    base.generateName = function(field, key) {
+    base.generateName = function(fields, key) {
+        fields = _.isArray(fields) ? fields.join('][') : fields;
         if (key !== undefined) {
-            return this.class + '[' + key + '][' + field + ']';
+            return this.className + '[' + key + '][' + fields + ']';
         } else {
-            return this.class + '[' + field + ']';
+            return this.className + '[' + fields + ']';
+        }
+    };
+
+    /**
+     * get the primary key as a string
+     * @returns {string}
+     */
+    base.getPrimaryKeyString = function() {
+        if (_.isArray(this.primaryKey)) {
+            if (this.primaryKey.length > 1) {
+                return this.primaryKey.join(',');
+            } else {
+                return this.primaryKey[0];
+            }
+        } else {
+            return this.primaryKey;
         }
     };
 
