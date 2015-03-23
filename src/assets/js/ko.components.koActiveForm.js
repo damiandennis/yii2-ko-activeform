@@ -7,7 +7,7 @@ ko.components.register('field-input-row', {
         this.field = params.field;
         this.fieldOptions = params.fieldOptions || {};
         this.fieldOptions.type = params.type || 'text';
-        this.fieldOptions.name = this.model.class + '[' + this.field + ']';
+        this.fieldOptions.name = this.model.className + '[' + this.field + ']';
         this.useLabel = params.useLabel !== undefined ? params.useLabel : true;
         if (!ko.isObservable(this.useLabel)) {
             this.useLabel = ko.observable(this.useLabel);

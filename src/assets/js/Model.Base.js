@@ -470,6 +470,10 @@ Model.Base = function(validationInit) {
      * @returns {boolean}
      */
     base.validate = function(attributes, showMessages) {
+        //If item is deleted it does not need to be validated.
+        if (this.deleted() == 1) {
+            return true;
+        }
         if (_.isArray(attributes)) {
             this.validateFields(attributes);
         }
@@ -515,10 +519,12 @@ Model.Base = function(validationInit) {
         var copy = {};
         copy.attributes = ko.toJS(this.attributes());
         copy.attributeLabels = this.attributeLabels;
+        copy.relations = ko.toJS(this.relations());
         copy.isNewRecord = true;
         copy.className = this.className;
         copy.jsClass = this.jsClass;
         copy.rules = this.rules();
+        copy.primaryKey = this.primaryKey;
         if (this.jsClass) {
             return new (Model[this.jsClass])(copy);
         } else {

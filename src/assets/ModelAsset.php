@@ -11,6 +11,13 @@ use damiandennis\knockoutjs\AssetBundle;
 
 class ModelAsset extends AssetBundle
 {
+    public $depends = [
+        'damiandennis\knockoutjs\KnockoutAsset',
+        'damiandennis\knockoutjs\KOMappingAsset',
+        'damiandennis\knockoutjs\KOValidationAsset',
+        'damiandennis\knockoutjs\LoDashAsset'
+    ];
+
     public function init()
     {
         $this->setSourcePath('@koactiveform/assets/js');
