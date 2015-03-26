@@ -11,7 +11,6 @@ yii.koActiveForm = (function ($) {
                 Model[v.className] = function(data) {
                     var model = this;
                     data = data || {};
-                    data.jsClass = v.className;
                     model.init(data);
                     this.toJSON = function() {
                         this.base.toJSON.bind(this);

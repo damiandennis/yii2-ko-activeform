@@ -114,12 +114,6 @@ Model.Base = function(validationInit) {
         this.className = data.className || '';
 
         /**
-         * The name of the client model (usually the same as server).
-         * @type {string}
-         */
-        this.jsClass = data.jsClass || '';
-
-        /**
          * The primary key name for this model or false if no primary key.
          *
          * @type {boolean|string}
@@ -391,13 +385,13 @@ Model.Base = function(validationInit) {
             var r = relations[k];
             if (typeof r === 'object') {
                 if (_.isArray(r)) {
-                    if (r[0] !== undefined && r[0].jsClass !== undefined && r[0].jsClass.length > 0) {
-                        modelName = r[0].jsClass;
+                    if (r[0] !== undefined && r[0].className !== undefined && r[0].className.length > 0) {
+                        modelName = r[0].className;
                     } else {
                         modelName = modelName.replace(/s$/, '');
                     }
-                } else if (r !== undefined && r.jsClass !== undefined && r.jsClass.length > 0) {
-                    modelName = r[0].jsClass;
+                } else if (r !== undefined && r.className !== undefined && r.className.length > 0) {
+                    modelName = r[0].className;
                 }
             } else {
                 modelName = modelName.replace(/s$/, '');
@@ -414,7 +408,6 @@ Model.Base = function(validationInit) {
                             Model[modelName] = function (data) {
                                 var model = this;
                                 data = data || {};
-                                data.jsClass = modelName;
                                 model.init(data);
                                 this.toJSON = function () {
                                     this.base.toJSON.bind(this);
@@ -522,11 +515,10 @@ Model.Base = function(validationInit) {
         copy.relations = ko.toJS(this.relations());
         copy.isNewRecord = true;
         copy.className = this.className;
-        copy.jsClass = this.jsClass;
         copy.rules = this.rules();
         copy.primaryKey = this.primaryKey;
-        if (this.jsClass) {
-            return new (Model[this.jsClass])(copy);
+        if (this.className) {
+            return new (Model[this.className])(copy);
         } else {
             throw new Error('jsClass must be defined in order to clone.');
         }
